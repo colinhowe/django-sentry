@@ -90,3 +90,7 @@ WEB_HOST = 'localhost'
 WEB_PORT = 9000
 WEB_LOG_FILE = os.path.join(ROOT, 'sentry.log')
 WEB_PID_FILE = os.path.join(ROOT, 'sentry.pid')
+
+# The blacklist will allow for variables to be removed from Sentry's capture
+# mechanisms.
+BLACKLIST = []

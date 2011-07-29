@@ -76,6 +76,26 @@ class SentryClient(object):
             cache_key = 'sentry:%s:last_message_id' % (checksum,)
         
             cache.set(cache_key, message_id, settings.THRASHING_LIMIT + 5)
+
+    def apply_blacklist(self, data):
+        if not settings.BLACKLIST:
+            return
+
+        for key, value in data.iteritems():
+            if key == 'vars':
+                # vars is a list of tuples [[var_name, var_value], ...]
+                new_value = []
+                for var_name, var_value in value:
+                    if var_name in settings.BLACKLIST:
+                        new_value.append((var_name, u'*** blacklisted variable ***'))
+                    else:
+                        new_value.append((var_name, var_value))
+                data[key] = new_value
+            elif isinstance(value, dict):
+                self.apply_blacklist(value)
+            else:
+                if key in settings.BLACKLIST:
+                    data[key] = u'*** blacklisted variable ***'
         
     def process(self, **kwargs):
         "Processes the message before passing it on to the server"
@@ -168,6 +188,9 @@ class SentryClient(object):
 
         # Make sure all data is coerced
         kwargs['data'] = transform(kwargs['data'])
+
+        # Apply the blacklist to all data at this point
+        self.apply_blacklist(kwargs['data'])
 
         if 'timestamp' not in kwargs:
             kwargs['timestamp'] = datetime.datetime.now()

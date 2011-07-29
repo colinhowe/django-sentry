@@ -786,6 +786,41 @@ class SentryTestCase(BaseTestCase):
         self.assertEquals(last.data['tuple'][-2], '...')
         self.assertEquals(last.data['tuple'][-1], '(450 more elements)')
 
+    def testBlacklist(self):
+        settings.BLACKLIST = ['hideme']
+        logger = logging.getLogger()
+
+        self.setUpHandler()
+
+        logger.error('This is a test %s', 'error', extra={'data': {
+            'hideme': 'magic',
+            'nohide': 'magic',
+            'vars': [
+                ['hideme', 'magic'],
+                ['nohideme', 'magic'],
+            ],
+            'POST': {
+                'hideme': 'magic',
+                'nohide': 'magic',
+            }
+        }})
+        self.assertEquals(Message.objects.count(), 1)
+        self.assertEquals(GroupedMessage.objects.count(), 1)
+        last = Message.objects.get()
+
+        # Magic should be hidden for 'hideme'
+        self.assertNotEquals('magic', last.data['hideme'])
+        self.assertEquals('magic', last.data['nohide'])
+
+        # vars data for each stack point should be filtered
+        self.assertNotEquals('magic', last.data['vars'][0][1])
+        self.assertEquals(('nohideme', 'magic'), last.data['vars'][1])
+
+        # additional dicts such as POST should be filtered
+        self.assertNotEquals('magic', last.data['POST']['hideme'])
+        self.assertEquals('magic', last.data['POST']['nohide'])
+
+
 class SentryViewsTest(BaseTestCase):
     fixtures = ['tests/fixtures/views.json']
     
